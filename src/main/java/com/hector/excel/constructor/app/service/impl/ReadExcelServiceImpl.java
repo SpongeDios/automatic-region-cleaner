@@ -1,6 +1,7 @@
 package com.hector.excel.constructor.app.service.impl;
 
 import com.hector.excel.constructor.app.dto.DivDTO;
+import com.hector.excel.constructor.app.dto.Locations;
 import com.hector.excel.constructor.app.dto.VeterinariaWrapper;
 import com.hector.excel.constructor.app.service.ReadExcelService;
 import org.apache.poi.ss.usermodel.*;
@@ -12,11 +13,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 public class ReadExcelServiceImpl implements ReadExcelService {
-    private static final String FILE_LOCATION = "E:/Esponja/nichos 2.0/veterinarias/excels/antofagasta/antofagasta.xlsx";
+    private static final String FILE_LOCATION = "E:/Esponja/nichos 2.0/veterinarias/excels/%s/%s.xlsx";
     private static final List<VeterinariaWrapper> veterinarias = new ArrayList<>();
     private static final String COMUNA = "ANTOFAGASTA";
 
@@ -27,8 +29,15 @@ public class ReadExcelServiceImpl implements ReadExcelService {
     private static final Integer FULL_ADDRESS_COLUMN_NUMBER = 8;
 
     @Override
-    public String readExcel() throws IOException {
-        FileInputStream file = new FileInputStream(FILE_LOCATION);
+    public String readExcel(Locations locations) throws IOException {
+        if (Objects.isNull(locations))
+            return "bad request";
+
+        if (Objects.isNull(locations.getComuna()) || Objects.isNull(locations.getRegion()))
+            return "bad request";
+
+        String overrideFileLocation = String.format(FILE_LOCATION, locations.getRegion(), locations.getComuna());
+        FileInputStream file = new FileInputStream(overrideFileLocation);
         Workbook workbook = new XSSFWorkbook(file);
         Sheet sheet = workbook.getSheetAt(0);
 
@@ -45,13 +54,13 @@ public class ReadExcelServiceImpl implements ReadExcelService {
             VeterinariaWrapper veterinariaWrapper = VeterinariaWrapper.builder()
                     .name(cellName.getStringCellValue())
                     .phone(cellPhone.getStringCellValue())
-                    .rating(cellRating.getNumericCellValue())
-                    .quantityReviews(cellReview.getNumericCellValue())
+                    .rating(cellRating == null ? 0 : cellRating.getNumericCellValue())
+                    .quantityReviews(cellReview == null ? 0: cellReview.getNumericCellValue())
                     .fullAddress(cellFullAddress.getStringCellValue())
                     .build();
             veterinarias.add(veterinariaWrapper);
         }
-        List<VeterinariaWrapper> veterinariaWrappers = filterVeterinariasByComuna(COMUNA);
+        List<VeterinariaWrapper> veterinariaWrappers = filterVeterinariasByComuna(locations.getComuna());
         List<DivDTO> divDTO = parseDataToHtml(veterinariaWrappers);
         StringBuilder stringBuilder = new StringBuilder();
 
@@ -72,10 +81,11 @@ public class ReadExcelServiceImpl implements ReadExcelService {
     }
 
     private List<VeterinariaWrapper> filterVeterinariasByComuna(String comuna) {
+        String comunaUpperCase = comuna.toUpperCase(Locale.ROOT);
         return veterinarias
                 .stream()
-                .filter(veterinaria -> veterinaria.getName().toUpperCase(Locale.ROOT).contains(comuna) ||
-                        veterinaria.getFullAddress().toUpperCase(Locale.ROOT).contains(comuna))
+                .filter(veterinaria -> deleteAcentos(veterinaria.getName()).toUpperCase(Locale.ROOT).contains(comunaUpperCase) ||
+                        deleteAcentos(veterinaria.getFullAddress()).toUpperCase(Locale.ROOT).contains(comunaUpperCase))
                 .collect(Collectors.toList());
     }
 
@@ -141,5 +151,19 @@ public class ReadExcelServiceImpl implements ReadExcelService {
         , phoneFormatter);
 
         return first + telButton + second + whatsAppButton + last;
+    }
+
+    private String deleteAcentos(String text){
+        return text
+                .replace("á", "a")
+                .replace("é", "e")
+                .replace("í", "i")
+                .replace("ó", "o")
+                .replace("ú", "u")
+                .replace("Á", "A")
+                .replace("É", "E")
+                .replace("Í", "I")
+                .replace("Ó", "O")
+                .replace("Ú", "U");
     }
 }

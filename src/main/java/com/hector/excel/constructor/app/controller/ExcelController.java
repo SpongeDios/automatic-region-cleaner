@@ -1,8 +1,10 @@
 package com.hector.excel.constructor.app.controller;
 
+import com.hector.excel.constructor.app.dto.Locations;
 import com.hector.excel.constructor.app.service.ReadExcelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
@@ -18,8 +20,8 @@ public class ExcelController {
     private final ReadExcelService readExcelService;
 
     @GetMapping("/")
-    public String test() throws IOException {
-        return readExcelService.readExcel();
+    public String test(@RequestBody Locations locations) throws IOException {
+        return readExcelService.readExcel(locations);
     }
 
     @GetMapping("/test")
